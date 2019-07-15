@@ -1,0 +1,105 @@
+Microsoft (R) Macro Assembler Version 14.11.25508.2	    11/22/18 22:57:03
+LP_asm01.asm						     Page 1 - 1
+
+
+				.586														; система команд (процессор Pentium)
+				.model flat, stdcall										; модель памяти, соглашение о вызовах
+				includelib kernel32.lib										; компановщику: компоновать с kernel32
+
+				ExitProcess PROTO: DWORD									; прототип функции для завершения процесса Windows 
+
+				.stack 4096													; выделение стека объёмом 4 мегабайта
+
+ 00000000			.const														; константы
+ 00000000 0000000B			array sdword 11, 2, 0, 4, 322, 8, 54, 11, 16, 27		; массив заполненый 10-ю значениями
+	   00000002
+	   00000000
+	   00000004
+	   00000142
+	   00000008
+	   00000036
+	   0000000B
+	   00000010
+	   0000001B
+
+ 00000000			.data
+ 00000000 00000000			min sdword ?
+
+ 00000000			.code
+
+ 00000000			getmin PROC start : sdword, amount : dword;
+ 00000003  8B 75 08			mov esi, start											; адрес начала массива
+ 00000006  8B 4D 0C			mov ecx, amount											; количество элементов
+ 00000009  8B 1E			mov ebx, [esi]											; количество элементов
+ 0000000B			Next:														; 
+ 0000000B  AD				lodsd													; поместить 4 байт по адресу esi в eax, esi увеличится на 4
+ 0000000C  83 E9 01			sub ecx, 1												;
+ 0000000F  83 F9 00			cmp ecx, 0												; проверка, остались ли элементы в массиве
+ 00000012  74 08			je Exit													; завершение  перебора, если не осталось
+ 00000014  3B D8			cmp  ebx, eax											; сравнить с предыдущим результатом
+ 00000016  7C F3			jl Next													; если полученный байт больше перейти к повторному чтению массива(следующего байта)
+ 00000018  8B D8			mov ebx, eax											; сохранить новое значение как меньшее
+ 0000001A  EB EF			jmp Next												; перейти к повторному чтению массива(следующего байта)
+ 0000001C			Exit:														; 
+ 0000001C  8B C3			mov eax, ebx											; наименьшее значение в eax
+					ret														; возврат результат в регистре eax
+ 00000022			getmin ENDP													;
+
+ 00000022			main PROC													; точка входа main
+ 00000022  6A 0A		    push lengthof array										;
+ 00000024  68 00000000 R	    push offset array										; помещаем массив в стек
+ 00000029  E8 FFFFFFD2		    call getmin												; вызов процедуры getmin
+ 0000002E  A3 00000000 R	    mov min, eax											; результат в min
+
+ 00000033  6A 00			push 0													; помещаем в стек код завершения процесса Windows
+ 00000035  E8 00000000 E		call ExitProcess										; завершение процесса Windows
+ 0000003A			main ENDP													; конец процедуры
+				end main						
+Microsoft (R) Macro Assembler Version 14.11.25508.2	    11/22/18 22:57:03
+LP_asm01.asm						     Symbols 2 - 1
+
+
+
+
+Segments and Groups:
+
+                N a m e                 Size     Length   Align   Combine Class
+
+CONST  . . . . . . . . . . . . .	32 Bit	 00000028 Para	  Public  'CONST'	 ReadOnly
+FLAT . . . . . . . . . . . . . .	GROUP
+STACK  . . . . . . . . . . . . .	32 Bit	 00001000 Para	  Stack	  'STACK'	 
+_DATA  . . . . . . . . . . . . .	32 Bit	 00000004 Para	  Public  'DATA'	
+_TEXT  . . . . . . . . . . . . .	32 Bit	 0000003A Para	  Public  'CODE'	
+
+
+Procedures, parameters, and locals:
+
+                N a m e                 Type     Value    Attr
+
+ExitProcess  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
+getmin . . . . . . . . . . . . .	P Near	 00000000 _TEXT	Length= 00000022 Public STDCALL
+  start  . . . . . . . . . . . .	DWord	 bp + 00000008
+  amount . . . . . . . . . . . .	DWord	 bp + 0000000C
+  Next . . . . . . . . . . . . .	L Near	 0000000B _TEXT	
+  Exit . . . . . . . . . . . . .	L Near	 0000001C _TEXT	
+main . . . . . . . . . . . . . .	P Near	 00000022 _TEXT	Length= 00000018 Public STDCALL
+
+
+Symbols:
+
+                N a m e                 Type     Value    Attr
+
+@CodeSize  . . . . . . . . . . .	Number	 00000000h   
+@DataSize  . . . . . . . . . . .	Number	 00000000h   
+@Interface . . . . . . . . . . .	Number	 00000003h   
+@Model . . . . . . . . . . . . .	Number	 00000007h   
+@code  . . . . . . . . . . . . .	Text   	 _TEXT
+@data  . . . . . . . . . . . . .	Text   	 FLAT
+@fardata?  . . . . . . . . . . .	Text   	 FLAT
+@fardata . . . . . . . . . . . .	Text   	 FLAT
+@stack . . . . . . . . . . . . .	Text   	 FLAT
+array  . . . . . . . . . . . . .	DWord	 00000000 CONST	
+min  . . . . . . . . . . . . . .	DWord	 00000000 _DATA	
+
+	   0 Warnings
+	   0 Errors

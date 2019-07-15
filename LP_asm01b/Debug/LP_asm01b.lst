@@ -1,0 +1,191 @@
+Microsoft (R) Macro Assembler Version 14.11.25508.2	    11/23/18 13:53:03
+LP_asm01b.asm						     Page 1 - 1
+
+
+				.586														; система команд (процессор Pentium)
+				.model flat, stdcall										; модель памяти, соглашение о вызовах
+				includelib kernel32.lib										; компановщику: компоновать с kernel32
+				includelib ..\Debug\LP_asm01a.lib
+
+				ExitProcess PROTO: DWORD									; прототип функции для завершения процесса Windows 
+				GetStdHandle PROTO: DWORD									; получить handle вывода на консоль 
+																			; (принимает константное значение -10 ввод, -11 вывод, -12 ошибка устройства вывода)
+				WriteConsoleA PROTO: DWORD,: DWORD,: DWORD,: DWORD,: DWORD	; вывод на консоль (стандартная ф-ия)
+				SetConsoleTitleA PROTO: DWORD								; прототип ф-ии устанавливающей заголовок консольного окна (функция стандартная)
+
+				getmin PROTO :DWORD, :DWORD
+				getmax PROTO :DWORD, :DWORD
+
+				.stack 4096													; выделение стека объёмом 4 мегабайта
+
+ 00000000			.const														; константы
+ 00000000 4C 50 5F 61 73		consoleTitle byte 'LP_asm01', 0							; строка, первый элемент данные + нулевой бит
+	   6D 30 31 00
+ 00000009 FFFFFFF5			handleOutput sdword -11									; код на запрос разрешения вывода в консоль
+ 0000000D 0000000B			array sdword 11, 2, 0, 14, 2, -8, 54, 3, 23, 27			; массив заполненый 10-ю значениями
+	   00000002
+	   00000000
+	   0000000E
+	   00000002
+	   FFFFFFF8
+	   00000036
+	   00000003
+	   00000017
+	   0000001B
+ 00000035 67 65 74 6D 61		text byte 'getmax-getmin =', 0							; строка для вывода ответа	
+	   78 2D 67 65 74
+	   6D 69 6E 20 3D
+	   00
+
+ 00000000			.data
+ 00000000 00000000			consoleHandle dword 0h									; состояние консоли
+ 00000004 00000000			max sdword ?
+ 00000008 00000000			min sdword ?
+ 0000000C 00000000			result sdword ?
+ 00000010  00000004 [			resultString byte 4 dup(0)
+	    00
+	   ]
+
+ 00000000			.code
+
+ 00000000			int_to_char PROC uses eax ebx ecx edi esi,
+				                              pstr: dword,      ; адрес строки для результата
+				                              intfield: dword   ; преобразуемое число
+
+ 00000008  8B 7D 08		  mov edi, pstr                ; адрес результата в edi
+ 0000000B  BE 00000000		  mov esi, 0                   ; количество символов результата
+ 00000010  8B 45 0C		  mov eax, intfield           ; число в eax
+ 00000013  99			  cdq                          ; распространение знака eax на edx
+ 00000014  BB 0000000A		  mov ebx, 10                  ; десятичная система счисления 
+ 00000019  F7 FB		  idiv ebx                     ; eax = eax/edx остаток в edx
+ 0000001B  A9 80000000		  test eax, 80000000h           ; проверка на отрицательность
+ 00000020  74 09		  jz plus                      ; на метку plus, если положительный 
+ 00000022  F7 D8		  neg eax                      ; eax = -eax
+ 00000024  F7 DA		  neg edx                      ; edx = -edx
+ 00000026  B1 2D		  mov cl, '-'                  ; первый символ результата '-'
+ 00000028  88 0F		  mov [edi], cl                ; запись ^ по адресу в edi
+ 0000002A  47			  inc edi                      ; ++edi т.е. адрес для вывода символа рез-та
+ 0000002B			plus:                          ; разложение на степени 10
+ 0000002B  66| 52		  push dx                      ; остаток в стек
+ 0000002D  46			  inc esi                      ; ++esi т.е. кол-ва символов рез-та
+ 0000002E  85 C0		  test eax,eax                 ; eax == 0 ???
+ 00000030  74 05		  jz fin                       ; да - то на fin
+ 00000032  99			  cdq                          ; распространение знака с eax на edx
+ 00000033  F7 FB		  idiv ebx                     ; eax = eax/ebx, остаток в  edx
+ 00000035  EB F4		  jmp plus                     ; переход на plus
+ 00000037			fin:
+ 00000037  8B CE		  mov ecx,esi                  ; кол-во не 0вых остатков = кол-ву символов рез-та??????
+ 00000039			write:                         ; запись результата
+ 00000039  66| 5B		  pop bx                       ; остаток из стека в bx
+ 0000003B  80 C3 30		  add bl,'0'                   ; формирование символа в bl
+ 0000003E  88 1F		  mov [edi],bl                 ; пересылка символа из bl на адрес рез-та
+ 00000040  47			  inc edi                      ; ++edi т.е. адрес для вывода символа рез-та
+ 00000041  E2 F6		  loop write                   ; if(-ecx) > 0 goto write 
+
+				   ret
+ 0000004C			int_to_char ENDP
+
+ 0000004C			main PROC										        ; точка входа main
+																        
+ 0000004C  68 00000000 R		push offset consoleTitle					        ; помещаем в стек параметр функции SetConsoleTitle строку
+ 00000051  E8 00000000 E		call SetConsoleTitleA						        ; вызываем функцию устанвки заголовка окна
+																        
+ 00000056  FF 35 00000009 R		push handleOutput							        ; помещаем в стек код ращзрешения на вывод в консоли
+ 0000005C  E8 00000000 E		call GetStdHandle							        ; вызываем ф-ию проверки разрешения на вывод
+ 00000061  A3 00000000 R		mov consoleHandle, eax						        ; копируем полученное разрешение из регистра eax
+																        
+ 00000066  6A 0A		    push lengthof array                                 ;
+ 00000068  68 0000000D R	    push offset array                                   ; помещаем массив в стек
+ 0000006D  E8 00000000 E	    call getmin											; вызов процедуры getmin
+ 00000072  A3 00000008 R	    mov min, eax										; результат в min
+
+ 00000077  6A 0A			push lengthof array									;
+ 00000079  68 0000000D R	    push offset array									; помещаем массив в стек
+ 0000007E  E8 00000000 E	    call getmax											; вызов процедуры getmax
+ 00000083  A3 00000004 R	    mov max, eax										; результат в max
+ 00000088  2B 05 00000008 R		sub eax, min										; 
+ 0000008E  A3 0000000C R		mov result, eax										;
+
+ 00000093  6A 00			push 0												; можно отправлять нули, нужно для ф-ии вывода в консоль
+ 00000095  6A 00			push 0												; можно отправлять нули, нужно для ф-ии вывода в консоль
+ 00000097  6A 10			push sizeof text									; размер массива в стек
+ 00000099  68 00000035 R		push offset text									; указатель на начало строки в стек
+ 0000009E  FF 35 00000000 R		push consoleHandle									; полученное разрешение
+ 000000A4  E8 00000000 E		call WriteConsoleA 
+
+ 000000A9  FF 35 0000000C R		push result
+ 000000AF  68 00000010 R		push offset resultString 
+ 000000B4  E8 FFFFFF47			call int_to_char
+
+ 000000B9  6A 00			push 0												; можно отправлять нули, нужно для ф-ии вывода в консоль
+ 000000BB  6A 00			push 0												; можно отправлять нули, нужно для ф-ии вывода в консоль
+ 000000BD  6A 04			push sizeof resultString 							; размер массива в стек
+ 000000BF  68 00000010 R		push offset resultString							; указатель на начало строки в стек
+ 000000C4  FF 35 00000000 R		push consoleHandle									; полученное разрешение
+ 000000CA  E8 00000000 E		call WriteConsoleA 
+
+ 000000CF  6A 00			push 0												; помещаем в стек код завершения процесса Windows
+ 000000D1  E8 00000000 E		call ExitProcess									; завершение процесса Windows
+ 000000D6			main ENDP												; конец процедуры
+				end main			
+Microsoft (R) Macro Assembler Version 14.11.25508.2	    11/23/18 13:53:03
+LP_asm01b.asm						     Symbols 2 - 1
+
+
+
+
+Segments and Groups:
+
+                N a m e                 Size     Length   Align   Combine Class
+
+CONST  . . . . . . . . . . . . .	32 Bit	 00000045 Para	  Public  'CONST'	 ReadOnly
+FLAT . . . . . . . . . . . . . .	GROUP
+STACK  . . . . . . . . . . . . .	32 Bit	 00001000 Para	  Stack	  'STACK'	 
+_DATA  . . . . . . . . . . . . .	32 Bit	 00000014 Para	  Public  'DATA'	
+_TEXT  . . . . . . . . . . . . .	32 Bit	 000000D6 Para	  Public  'CODE'	
+
+
+Procedures, parameters, and locals:
+
+                N a m e                 Type     Value    Attr
+
+ExitProcess  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
+GetStdHandle . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
+SetConsoleTitleA . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
+WriteConsoleA  . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
+getmax . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
+getmin . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
+int_to_char  . . . . . . . . . .	P Near	 00000000 _TEXT	Length= 0000004C Public STDCALL
+  pstr . . . . . . . . . . . . .	DWord	 bp + 00000008
+  intfield . . . . . . . . . . .	DWord	 bp + 0000000C
+  plus . . . . . . . . . . . . .	L Near	 0000002B _TEXT	
+  fin  . . . . . . . . . . . . .	L Near	 00000037 _TEXT	
+  write  . . . . . . . . . . . .	L Near	 00000039 _TEXT	
+main . . . . . . . . . . . . . .	P Near	 0000004C _TEXT	Length= 0000008A Public STDCALL
+
+
+Symbols:
+
+                N a m e                 Type     Value    Attr
+
+@CodeSize  . . . . . . . . . . .	Number	 00000000h   
+@DataSize  . . . . . . . . . . .	Number	 00000000h   
+@Interface . . . . . . . . . . .	Number	 00000003h   
+@Model . . . . . . . . . . . . .	Number	 00000007h   
+@code  . . . . . . . . . . . . .	Text   	 _TEXT
+@data  . . . . . . . . . . . . .	Text   	 FLAT
+@fardata?  . . . . . . . . . . .	Text   	 FLAT
+@fardata . . . . . . . . . . . .	Text   	 FLAT
+@stack . . . . . . . . . . . . .	Text   	 FLAT
+array  . . . . . . . . . . . . .	DWord	 0000000D CONST	
+consoleHandle  . . . . . . . . .	DWord	 00000000 _DATA	
+consoleTitle . . . . . . . . . .	Byte	 00000000 CONST	
+handleOutput . . . . . . . . . .	DWord	 00000009 CONST	
+max  . . . . . . . . . . . . . .	DWord	 00000004 _DATA	
+min  . . . . . . . . . . . . . .	DWord	 00000008 _DATA	
+resultString . . . . . . . . . .	Byte	 00000010 _DATA	
+result . . . . . . . . . . . . .	DWord	 0000000C _DATA	
+text . . . . . . . . . . . . . .	Byte	 00000035 CONST	
+
+	   0 Warnings
+	   0 Errors

@@ -1,0 +1,4 @@
+﻿  Assembling LP_asm01e.asm...
+LINK : warning LNK4098: библиотека по умолчанию "libucrt.lib" противоречит использованию других библиотек; используйте параметр /NODEFAULTLIB:library
+  LP_asm01e.vcxproj -> D:\2k1s\YaP\labs\LPLab17\LP_asm01\Debug\LP_asm01e.exe
+  LP_asm01e.vcxproj -> D:\2k1s\YaP\labs\LPLab17\LP_asm01\Debug\LP_asm01e.pdb (Partial PDB)
